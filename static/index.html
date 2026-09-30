@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>QuestLife</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    .xp-fill { transition: width 0.6s ease-in-out; }
+    /* Модалки: hidden побеждает flex */
+    .modal-overlay { display: none !important; }
+    .modal-overlay.open { display: flex !important; }
+
+    /* Темы: переопределяем Tailwind-классы в контексте темы */
+    body[data-theme="light"] .bg-slate-900, body[data-theme="light"] .bg-slate-800\/80, body[data-theme="light"] .bg-slate-800\/60, body[data-theme="light"] .bg-slate-800\/90 { background-color: #ffffff !important; }
+    body[data-theme="light"] .bg-slate-800, body[data-theme="light"] .bg-slate-900\/40, body[data-theme="light"] .bg-slate-900\/60 { background-color: #f1f5f9 !important; }
+    body[data-theme="light"] .border-slate-700, body[data-theme="light"] .border-slate-600 { border-color: #cbd5e1 !important; }
+    body[data-theme="light"] .text-slate-100, body[data-theme="light"] .text-slate-200 { color: #0f172a !important; }
+    body[data-theme="light"] .text-slate-300, body[data-theme="light"] .text-slate-400 { color: #334155 !important; }
+    body[data-theme="light"] .text-slate-500, body[data-theme="light"] .text-slate-600 { color: #64748b !important; }
+    body[data-theme="light"] { background: #f8fafc !important; color: #0f172a !important; }
+    body[data-theme="light"] .bg-slate-800\/40 { background-color: #e2e8f0 !important; }
+
+    body[data-theme="indigo"] { background: #1e1b4b !important; }
+    body[data-theme="indigo"] .bg-slate-900, body[data-theme="indigo"] .bg-slate-800\/80, body[data-theme="indigo"] .bg-slate-800\/60, body[data-theme="indigo"] .bg-slate-800\/90 { background-color: #312e81 !important; }
+    body[data-theme="indigo"] .bg-slate-800, body[data-theme="indigo"] .bg-slate-900\/40, body[data-theme="indigo"] .bg-slate-900\/60 { background-color: #3730a3 !important; }
+    body[data-theme="indigo"] .border-slate-700, body[data-theme="indigo"] .border-slate-600 { border-color: #4f46e5 !important; }
+
+    body[data-theme="emerald"] { background: #052e16 !important; }
+    body[data-theme="emerald"] .bg-slate-900, body[data-theme="emerald"] .bg-slate-800\/80, body[data-theme="emerald"] .bg-slate-800\/60, body[data-theme="emerald"] .bg-slate-800\/90 { background-color: #064e3b !important; }
+    body[data-theme="emerald"] .bg-slate-800, body[data-theme="emerald"] .bg-slate-900\/40, body[data-theme="emerald"] .bg-slate-900\/60 { background-color: #065f46 !important; }
+    body[data-theme="emerald"] .border-slate-700, body[data-theme="emerald"] .border-slate-600 { border-color: #059669 !important; }
+
+    body[data-theme="rose"] { background: #4c0519 !important; }
+    body[data-theme="rose"] .bg-slate-900, body[data-theme="rose"] .bg-slate-800\/80, body[data-theme="rose"] .bg-slate-800\/60, body[data-theme="rose"] .bg-slate-800\/90 { background-color: #881337 !important; }
+    body[data-theme="rose"] .bg-slate-800, body[data-theme="rose"] .bg-slate-900\/40, body[data-theme="rose"] .bg-slate-900\/60 { background-color: #9f1239 !important; }
+    body[data-theme="rose"] .border-slate-700, body[data-theme="rose"] .border-slate-600 { border-color: #e11d48 !important; }
+
+    body[data-theme="amber"] { background: #451a03 !important; }
+    body[data-theme="amber"] .bg-slate-900, body[data-theme="amber"] .bg-slate-800\/80, body[data-theme="amber"] .bg-slate-800\/60, body[data-theme="amber"] .bg-slate-800\/90 { background-color: #78350f !important; }
+    body[data-theme="amber"] .bg-slate-800, body[data-theme="amber"] .bg-slate-900\/40, body[data-theme="amber"] .bg-slate-900\/60 { background-color: #92400e !important; }
+    body[data-theme="amber"] .border-slate-700, body[data-theme="amber"] .border-slate-600 { border-color: #d97706 !important; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans pb-24">
+
+  <!-- ============ ШАПКА ============ -->
+  <header class="max-w-md mx-auto px-4 pt-6 pb-4">
+    <div class="flex items-center gap-4 bg-slate-800/80 rounded-2xl p-4 border border-slate-700">
+        <button id="settingsBtn" type="button" class="absolute -top-2 -left-2 w-9 h-9 rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center text-slate-400 hover:text-white hover:rotate-45 transition-all duration-300 shadow-lg z-10" title="Настройки">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.576 2.136.336 2.471-.925z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </button>
+      <div id="avatar" class="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-2xl font-bold select-none">?</div>
+      <div class="flex-1 min-w-0">
+        <h1 id="username" class="text-lg font-bold truncate">Гость</h1>
+        <p class="text-slate-400 text-sm">Уровень <span id="level" class="text-indigo-400 font-bold">1</span></p>
+      </div>
+      <div class="flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2">
+        <span class="text-lg">🪙</span>
+        <span id="gold" class="font-bold text-amber-400">0</span>
+      </div>
+    </div>
+
+    <div class="mt-4 bg-slate-800/80 rounded-2xl p-4 border border-slate-700">
+      <div class="flex justify-between text-sm mb-2">
+        <span class="text-slate-400">Опыт</span>
+        <span><span id="xp" class="text-indigo-400 font-bold">0</span> / <span id="xpNeeded">100</span> XP</span>
+      </div>
+      <div class="h-3 bg-slate-700 rounded-full overflow-hidden">
+        <div id="xpBar" class="xp-fill h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" style="width: 0%"></div>
+      </div>
+      <p class="text-xs text-slate-500 mt-2">Дневной лимит: <span id="dailyLimits">200 XP · 150 зол.</span></p>
+    </div>
+  </header>
+
+  <!-- ============ ТАБЫ ============ -->
+  <div class="max-w-md mx-auto px-4">
+    <div class="flex bg-slate-800 rounded-xl p-1 gap-1">
+      <button id="tabQuests" class="tab-btn flex-1 py-2 rounded-lg text-sm font-bold bg-indigo-600">⚔️ Квесты</button>
+      <button id="tabShop" class="tab-btn flex-1 py-2 rounded-lg text-sm font-bold text-slate-400">🛒 Магазин</button>
+      <button id="tabRating" class="tab-btn flex-1 py-2 rounded-lg text-sm font-bold text-slate-400">🏆 Рейтинг</button>
+    </div>
+  </div>
+
+  <!-- ============ ЭКРАН КВЕСТОВ ============ -->
+  <main id="questsScreen" class="max-w-md mx-auto px-4 pb-8 pt-4">
+    <!-- Дата и группы -->
+    <div class="flex gap-2 mb-3 items-center">
+      <input id="dateFilter" type="date" class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs" />
+      <button id="btnToday" class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-400">Сегодня</button>
+      <button id="btnEvalAI" class="bg-purple-600 hover:bg-purple-500 rounded-xl px-3 py-2 text-xs font-bold ml-auto">✨ Оценить ИИ</button>
+    </div>
+
+    <!-- Кнопка добавления -->     <button id="fabAdd" type="button" class="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/30 flex items-center justify-center text-2xl font-bold text-white active:scale-95 transition z-40">+</button>      <!-- Модалка создания квеста -->     <div id="questModal" class="modal-overlay fixed inset-0 bg-black/60 backdrop-blur-sm z-50 items-end sm:items-center justify-center">       <div class="bg-slate-900 border border-slate-700 rounded-t-3xl sm:rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 space-y-5">         <div class="flex items-center justify-between">           <h3 class="text-lg font-bold">Новый квест</h3>           <button id="modalClose" type="button" class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition">✕</button>         </div>          <!-- Название -->         <div>           <label class="text-xs text-slate-400 block mb-1">Название квеста</label>           <input id="habitInput" type="text" placeholder="Например: Пить воду" maxlength="120"             class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 placeholder:text-slate-500" />         </div>          <!-- Группа -->         <div>           <label class="text-xs text-slate-400 block mb-1">Группа <span class="text-slate-600">(необязательно)</span></label>           <input id="groupInput" type="text" placeholder="Например: Здоровье" maxlength="60"             class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500 placeholder:text-slate-500" />         </div>          <!-- Тип квеста -->         <div>           <label class="text-xs text-slate-400 block mb-2">Тип квеста</label>           <div class="grid grid-cols-2 gap-2">             <button type="button" class="quest-type bg-slate-800 border-2 border-indigo-500 rounded-xl p-3 text-left transition" data-type="today">               <span class="block text-sm font-bold">📅 Сегодня</span>               <span class="block text-[10px] text-slate-500 mt-0.5">обычный квест</span>             </button>             <button type="button" class="quest-type bg-slate-800 border-2 border-slate-700 rounded-xl p-3 text-left transition" data-type="other">               <span class="block text-sm font-bold">📆 Другая дата</span>               <span class="block text-[10px] text-slate-500 mt-0.5">выбрать день</span>             </button>             <button type="button" class="quest-type bg-slate-800 border-2 border-slate-700 rounded-xl p-3 text-left transition" data-type="global">               <span class="block text-sm font-bold">🌐 Глобальный</span>               <span class="block text-[10px] text-slate-500 mt-0.5">без даты, навсегда</span>             </button>             <button type="button" class="quest-type bg-slate-800 border-2 border-slate-700 rounded-xl p-3 text-left transition" data-type="deadline">               <span class="block text-sm font-bold">⏳ Дедлайн</span>               <span class="block text-[10px] text-slate-500 mt-0.5">срок выполнения</span>             </button>           </div>           <div id="otherDateWrap" class="mt-2 hidden">             <input id="otherDateInput" type="date" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-indigo-500" />           </div>           <div id="deadlineWrap" class="mt-2 hidden">             <input id="deadlineInput" type="datetime-local" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-purple-500" />           </div>         </div>          <!-- Напоминание -->         <div>           <label class="flex items-center gap-2 text-xs text-slate-400 mb-2 cursor-pointer">             <input id="reminderEnabled" type="checkbox" class="accent-indigo-500 w-4 h-4" />             <span>⏰ Напомнить в Telegram</span>           </label>           <div id="reminderWrap" class="hidden">             <input id="reminderInput" type="time" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-indigo-500" />             <p class="text-[10px] text-slate-600 mt-1">Бот пришлёт сообщение в это время</p>           </div>         </div>          <!-- Кнопка -->         <button id="modalSubmit" type="button" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 active:scale-95 transition py-3.5 rounded-xl font-bold text-sm">Создать квест</button>       </div>     </div> 
+    <!-- Шаблоны -->
+    <div class="mb-4">
+      <p class="text-xs text-slate-500 mb-2">Быстрый выбор:</p>
+      <div class="flex flex-wrap gap-2">
+        <button class="template-habit bg-slate-800 border border-slate-700 hover:border-indigo-600 rounded-full px-3 py-1.5 text-xs" data-title="Пить воду" data-group="Здоровье">💧 Пить воду</button>
+        <button class="template-habit bg-slate-800 border border-slate-700 hover:border-indigo-600 rounded-full px-3 py-1.5 text-xs" data-title="Зарядка 10 минут" data-group="Здоровье">🏃 Зарядка</button>
+        <button class="template-habit bg-slate-800 border border-slate-700 hover:border-indigo-600 rounded-full px-3 py-1.5 text-xs" data-title="Читать 20 страниц" data-group="Развитие">📖 Читать</button>
+        <button class="template-habit bg-slate-800 border border-slate-700 hover:border-indigo-600 rounded-full px-3 py-1.5 text-xs" data-title="Медитация 5 минут" data-group="Здоровье">🧘 Медитация</button>
+        <button class="template-habit bg-slate-800 border border-slate-700 hover:border-indigo-600 rounded-full px-3 py-1.5 text-xs" data-title="Учить английский 30 минут" data-group="Развитие">🇬🇧 Английский</button>
+      </div>
+    </div>
+
+    <!-- Список по группам -->
+    <div id="habitGroups"></div>
+
+    <div id="emptyState" class="text-center text-slate-500 flex flex-col items-center justify-center min-h-[40vh] gap-3 hidden">
+      <div class="text-5xl">🗺️</div>
+      <p>Квестов нет.</p>
+      <p class="text-slate-400 text-sm">Добавь привычку или выбери дату!</p>
+      <button id="emptyAddBtn" type="button" class="mt-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition px-6 py-3 rounded-xl font-bold">➕ Добавить квест</button>
+    </div>
+  </main>
+
+  <!-- ============ ЭКРАН МАГАЗИНА ============ -->
+  <main id="shopScreen" class="max-w-md mx-auto px-4 pb-8 pt-4 hidden">
+    <h2 class="text-sm uppercase tracking-wider text-slate-500 font-semibold mb-3">Магазин</h2>
+
+    <form id="itemForm" class="bg-slate-800/80 rounded-2xl p-4 border border-slate-700 mb-4 space-y-3">
+      <div>
+        <label class="text-xs text-slate-400 block mb-1">Название предмета</label>
+        <input id="itemTitle" type="text" placeholder="Например: Кофе" maxlength="120"
+          class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500" />
+      </div>
+      <div>
+        <label class="text-xs text-slate-400 block mb-1">Цена (в золоте)</label>
+        <input id="itemPrice" type="number" min="1" max="1000000" value="10"
+          class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500" />
+      </div>
+      <div>
+        <label class="text-xs text-slate-400 block mb-1">Картинка (1:1, до 10 МБ)</label>
+        <input id="itemImage" type="file" accept="image/png,image/jpeg"
+          class="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500" />
+      </div>
+      <div>
+        <p class="text-xs text-slate-500 mb-2">Шаблоны:</p>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="template-item bg-slate-900 border border-slate-700 hover:border-amber-600 rounded-full px-3 py-1.5 text-xs" data-title="Вкусный кофе" data-price="10">☕ Кофе · 10 🪙</button>
+          <button type="button" class="template-item bg-slate-900 border border-slate-700 hover:border-amber-600 rounded-full px-3 py-1.5 text-xs" data-title="Вечер сериала" data-price="20">📺 Сериал · 20 🪙</button>
+          <button type="button" class="template-item bg-slate-900 border border-slate-700 hover:border-amber-600 rounded-full px-3 py-1.5 text-xs" data-title="Новая игра" data-price="100">🎮 Игра · 100 🪙</button>
+        </div>
+      </div>
+      <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition py-3 rounded-xl font-bold text-sm">Добавить в магазин</button>
+    </form>
+
+    <div id="itemGrid" class="grid grid-cols-2 gap-3"></div>
+
+    <div id="emptyShop" class="text-center text-slate-500 flex flex-col items-center justify-center min-h-[30vh] gap-3 hidden">
+      <div class="text-5xl">🛒</div>
+      <p>Магазин пуст.</p>
+    </div>
+  </main>
+
+  <!-- ============ ЭКРАН РЕЙТИНГА ============ -->
+  <main id="ratingScreen" class="max-w-md mx-auto px-4 pb-8 pt-4 hidden">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-sm uppercase tracking-wider text-slate-500 font-semibold">🏆 Топ игроков по XP</h2>
+      <button id="toggleRatingBtn" type="button" class="text-xs px-3 py-1.5 rounded-lg border border-slate-600 text-slate-300 hover:border-indigo-500 hover:text-indigo-400 transition">
+        👁 Скрыть меня
+      </button>
+    </div>
+    <div id="leaderboard" class="space-y-2"></div>
+    <div id="emptyRating" class="text-center text-slate-500 py-10 hidden">
+      <div class="text-4xl mb-2">🏆</div>
+      <p>Пока никто не играл</p>
+    </div>
+  </main>
+
+  <!-- ============ ТОСТЫ ============ -->
+  <div id="levelUpToast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-6 py-3 rounded-xl shadow-lg font-bold hidden z-50">🎉 Level Up!</div>
+  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-xl shadow-lg font-bold hidden z-50"></div>
+
+    <!-- Модалка настроек -->
+    <div id="settingsModal" class="modal-overlay fixed inset-0 bg-black/60 backdrop-blur-sm z-50 items-end sm:items-center justify-center">
+      <div class="bg-slate-900 border border-slate-700 rounded-t-3xl sm:rounded-3xl w-full max-w-md p-6 space-y-5">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-bold">⚙️ Настройки</h3>
+          <button id="settingsClose" type="button" class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition">✕</button>
+        </div>
+        <div>
+          <label class="text-xs text-slate-400 block mb-2">Тема оформления</label>
+          <div id="themeGrid" class="grid grid-cols-3 gap-2">
+            <button data-theme-btn="dark" class="theme-btn bg-slate-800 border-2 border-indigo-500 rounded-xl p-3 text-center">
+              <span class="block text-2xl">🌙</span><span class="text-[10px]">Тёмная</span>
+            </button>
+            <button data-theme-btn="light" class="theme-btn bg-white border-2 border-slate-300 rounded-xl p-3 text-center">
+              <span class="block text-2xl">☀️</span><span class="text-[10px] text-slate-700">Светлая</span>
+            </button>
+            <button data-theme-btn="indigo" class="theme-btn bg-indigo-950 border-2 border-slate-700 rounded-xl p-3 text-center">
+              <span class="block text-2xl">💜</span><span class="text-[10px]">Индиго</span>
+            </button>
+            <button data-theme-btn="emerald" class="theme-btn bg-emerald-950 border-2 border-slate-700 rounded-xl p-3 text-center">
+              <span class="block text-2xl">💚</span><span class="text-[10px]">Изумруд</span>
+            </button>
+            <button data-theme-btn="rose" class="theme-btn bg-rose-950 border-2 border-slate-700 rounded-xl p-3 text-center">
+              <span class="block text-2xl">❤️</span><span class="text-[10px]">Роза</span>
+            </button>
+            <button data-theme-btn="amber" class="theme-btn bg-amber-950 border-2 border-slate-700 rounded-xl p-3 text-center">
+              <span class="block text-2xl">🧡</span><span class="text-[10px]">Янтарь</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Предпросмотр обрезки -->
+    <div id="cropPreview" class="modal-overlay fixed inset-0 bg-black/70 backdrop-blur-sm z-50 items-center justify-center">
+      <div class="bg-slate-900 border border-slate-700 rounded-3xl p-6 space-y-4 max-w-sm">
+        <h3 class="text-lg font-bold text-center">Предпросмотр</h3>
+        <div class="w-48 h-48 mx-auto rounded-2xl overflow-hidden border-2 border-slate-600">
+          <img id="cropImg" src="" alt="preview" class="w-full h-full object-cover" />
+        </div>
+        <p class="text-xs text-slate-500 text-center">Изображение будет обрезано до квадрата 1:1</p>
+        <div class="flex gap-2">
+          <button id="cropCancel" type="button" class="flex-1 bg-slate-800 border border-slate-600 rounded-xl py-3 text-sm font-bold">Отмена</button>
+          <button id="cropAccept" type="button" class="flex-1 bg-indigo-600 rounded-xl py-3 text-sm font-bold">Загрузить</button>
+        </div>
+      </div>
+    </div>
+  <script>
+    // ============================================================
+    // 1. Инициализация
+    // ============================================================
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+
+    const tgData = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
+    const TG_ID = tgData ? tgData.id : 111111111;
+    const TG_USERNAME = tgData ? (tgData.username || (tgData.first_name || "Игрок")) : "Guest";
+
+    let currentUser = null;
+    let habits = [];
+    let items = [];
+    let selectedDate = new Date().toISOString().split("T")[0];
+
+    const $ = (id) => document.getElementById(id);
+
+    // ============================================================
+    // 2. API
+    // ============================================================
+    async function fetchJSON(url, options = {}) {
+      const res = await fetch(url, options);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail ?? `HTTP ${res.status}`);
+      }
+      return res.json();
+    }
+
+    async function loadUser() {
+      currentUser = await fetchJSON(`/api/user/${TG_ID}?username=${encodeURIComponent(TG_USERNAME)}`);
+      renderUser();
+    }
+
+    async function loadHabits() {
+      const url = `/api/habits/${TG_ID}${selectedDate ? `?date_filter=${selectedDate}` : ""}`;
+      habits = await fetchJSON(url);
+      renderHabits();
+    }
+
+    async function loadItems() {
+      items = await fetchJSON(`/api/items/${TG_ID}`);
+      renderItems();
+    }
+
+    async function loadLeaderboard() {
+      const data = await fetchJSON("/api/leaderboard");
+      renderLeaderboard(data);
+    }
+
+    // ============================================================
+    // 3. Рендер
+    // ============================================================
+    function renderUser() {
+      $("username").textContent = "@" + (currentUser.username ?? "guest");
+      $("level").textContent = currentUser.level;
+      $("xp").textContent = currentUser.xp;
+      $("xpNeeded").textContent = currentUser.xp_needed;
+      $("xpBar").style.width = `${Math.min(currentUser.xp / currentUser.xp_needed * 100, 100)}%`;
+      $("gold").textContent = currentUser.gold;
+      $("dailyLimits").textContent = `${currentUser.daily_xp_remaining} XP · ${currentUser.daily_gold_remaining} зол. осталось`;
+      const name = currentUser.username ?? "Guest";
+      $("avatar").textContent = name.charAt(0).toUpperCase();
+    }
+
+    function renderHabits() {
+      const container = $("habitGroups");
+      const empty = $("emptyState");
+      container.innerHTML = "";
+      empty.classList.toggle("hidden", habits.length > 0);
+
+      // Группируем по group_name
+      const groups = {};
+      habits.forEach((h) => {
+        const key = h.group_name ?? "";
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(h);
+      });
+
+      for (const [groupName, groupHabits] of Object.entries(groups)) {
+        // Карточка группы
+        const groupCard = document.createElement("div");
+        const hasGroupName = !!groupName;
+        groupCard.className = hasGroupName
+          ? "mb-5 rounded-2xl bg-slate-800/60 border border-slate-700/80 overflow-hidden"
+          : "mb-5";
+
+        if (hasGroupName) {
+          // Шапка группы
+          const header = document.createElement("div");
+          header.className = "flex items-center gap-2 px-4 py-3 border-b border-slate-700/50 bg-slate-800/90";
+          const dot = document.createElement("span");
+          dot.className = "w-2 h-2 rounded-full bg-indigo-400 shrink-0";
+          const name = document.createElement("span");
+          name.className = "text-sm font-bold text-slate-200 uppercase tracking-wide flex-1 truncate";
+          name.textContent = groupName;
+          const count = document.createElement("span");
+          const doneCount = groupHabits.filter(h => h.is_completed).length;
+          count.className = "text-xs text-slate-500 px-2 py-0.5 rounded-full bg-slate-700/50";
+          count.textContent = `${doneCount}/${groupHabits.length}`;
+          header.append(dot, name, count);
+          groupCard.append(header);
+        }
+
+        // Тело группы
+        const body = document.createElement("div");
+        body.className = hasGroupName ? "p-2 space-y-1" : "space-y-1";
+
+        groupHabits.forEach((habit) => {
+          const row = document.createElement("div");
+          const done = habit.is_completed;
+          const rowCls = done
+            ? "flex items-center gap-3 rounded-xl p-3 bg-slate-900/40 opacity-60 transition"
+            : "flex items-center gap-3 rounded-xl p-3 hover:bg-slate-900/60 transition cursor-pointer";
+          row.className = rowCls;
+          if (!done) row.addEventListener("click", (e) => {
+            if (e.target.closest("button")) return;
+            completeHabit(habit.id);
+          });
+
+          // Круглый чекбокс с галочкой
+          const check = document.createElement("button");
+          check.type = "button";
+          check.className = done
+            ? "w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/20"
+            : "w-7 h-7 rounded-full border-2 border-slate-600 hover:border-indigo-400 flex items-center justify-center shrink-0 transition";
+          check.innerHTML = done ? '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : "";
+          check.addEventListener("click", () => {
+            if (!done) completeHabit(habit.id);
+          });
+
+          // Текст
+          const textWrap = document.createElement("div");
+          textWrap.className = "flex-1 min-w-0";
+          const title = document.createElement("p");
+          title.className = "text-sm font-medium";
+          title.textContent = habit.title;
+          if (done) title.classList.add("line-through");
+
+          const meta = document.createElement("p");
+          meta.className = "text-xs text-slate-500 mt-0.5";
+          const badges = [];
+          if (habit.xp_reward > 0 || habit.gold_reward > 0) {
+            badges.push(`+${habit.xp_reward} XP · +${habit.gold_reward} 🪙`);
+          } else {
+            badges.push("не оценено");
+          }
+          if (habit.ai_evaluated) badges.push("✨");
+          if (habit.reminder_time) badges.push(`⏰ ${habit.reminder_time}`);
+          if (habit.is_global) badges.push("🌐");
+          if (habit.deadline) {
+            const dl = new Date(habit.deadline);
+            badges.push(`⏳ до ${dl.toLocaleDateString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`);
+          }
+          if (habit.scheduled_date !== new Date().toISOString().split("T")[0]) {
+            const d = new Date(habit.scheduled_date + "T00:00:00");
+            badges.push(d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }));
+          }
+          meta.textContent = badges.join(" · ");
+          textWrap.append(title, meta);
+
+          // Кнопка удаления
+          const delBtn = document.createElement("button");
+          delBtn.type = "button";
+          delBtn.className = "w-7 h-7 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center shrink-0 transition";
+          delBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>';
+          delBtn.title = "Удалить";
+          delBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (confirm(`Удалить «${habit.title}»?`)) deleteHabit(habit.id);
+          });
+
+          row.append(check, textWrap, delBtn);
+          body.append(row);
+        });
+        groupCard.append(body);
+        container.append(groupCard);
+      }
+    }
+
+    async function deleteHabit(habitId) {
+      try {
+        await fetchJSON(`/api/habits/${habitId}`, { method: "DELETE" });
+        habits = habits.filter((h) => h.id !== habitId);
+        renderHabits();
+      } catch (err) {
+        showToast("❌ " + err.message, "toast");
+      }
+    }
+
+    function renderItems() {
+      const grid = $("itemGrid");
+      const empty = $("emptyShop");
+      grid.innerHTML = "";
+      empty.classList.toggle("hidden", items.length > 0);
+
+      items.forEach((item) => {
+        const card = document.createElement("div");
+        card.className = "bg-slate-800/80 border border-slate-700 rounded-xl overflow-hidden " +
+          (item.is_purchased ? "opacity-60" : "hover:border-amber-600 transition");
+
+        const imgWrap = document.createElement("div");
+        imgWrap.className = "aspect-square bg-slate-900 flex items-center justify-center";
+        if (item.image_path) {
+          const img = document.createElement("img");
+          img.src = item.image_path;
+          img.alt = item.title;
+          img.className = "w-full h-full object-cover";
+          imgWrap.append(img);
+        } else {
+          const ph = document.createElement("span");
+          ph.className = "text-4xl";
+          ph.textContent = "🎁";
+          imgWrap.append(ph);
+        }
+
+        const info = document.createElement("div");
+        info.className = "p-3";
+
+        const title = document.createElement("p");
+        title.className = "text-sm font-bold truncate mb-1";
+        title.textContent = item.title;
+
+        const price = document.createElement("p");
+        price.className = "text-xs text-amber-400 mb-2";
+        price.textContent = `${item.price} 🪙`;
+
+        const btn = document.createElement("button");
+        if (item.is_purchased) {
+          btn.className = "w-full bg-green-600/20 text-green-400 py-2 rounded-lg text-xs font-bold";
+          btn.textContent = "✓ Куплено";
+          btn.disabled = true;
+        } else {
+          const ok = currentUser && currentUser.gold >= item.price;
+          btn.className = "w-full py-2 rounded-lg text-xs font-bold transition " +
+            (ok ? "bg-amber-600 hover:bg-amber-500" : "bg-slate-700 text-slate-400");
+          btn.textContent = ok ? "Купить" : "Не хватает золота";
+          btn.disabled = !ok;
+          btn.addEventListener("click", () => buyItem(item.id));
+        }
+
+        info.append(title, price, btn);
+        card.append(imgWrap, info);
+        grid.append(card);
+      });
+    }
+
+    function renderLeaderboard(data) {
+      const lb = $("leaderboard");
+      const empty = $("emptyRating");
+      lb.innerHTML = "";
+      empty.classList.toggle("hidden", data.length > 0);
+
+      data.forEach((entry) => {
+        const row = document.createElement("div");
+        const isMe = entry.telegram_id === TG_ID;
+        row.className = `flex items-center gap-3 rounded-xl border p-3 ${
+          isMe ? "bg-indigo-600/20 border-indigo-500" : "bg-slate-800/80 border-slate-700"
+        }`;
+
+        const rank = document.createElement("span");
+        rank.className = "text-lg font-bold w-8 text-center shrink-0";
+        const medals = ["🥇", "🥈", "🥉"];
+        rank.textContent = entry.rank <= 3 ? medals[entry.rank - 1] : `#${entry.rank}`;
+
+        const avatar = document.createElement("div");
+        avatar.className = "w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-sm font-bold shrink-0";
+        avatar.textContent = (entry.username ?? "?").charAt(0).toUpperCase();
+
+        const info = document.createElement("div");
+        info.className = "flex-1 min-w-0";
+        const name = document.createElement("p");
+        name.className = "text-sm font-bold truncate";
+        name.textContent = isMe ? "Ты" : `@${entry.username ?? "anon"}`;
+        const sub = document.createElement("p");
+        sub.className = "text-xs text-slate-500";
+        sub.textContent = `Ур. ${entry.level} · ${entry.total_xp} XP`;
+        info.append(name, sub);
+
+        row.append(rank, avatar, info);
+        lb.append(row);
+      });
+    }
+
+    // ============================================================
+    // 4. Действия: квесты
+    // ============================================================
+    async function completeHabit(habitId) {
+      try {
+        const data = await fetchJSON(`/api/habits/${habitId}/complete`, { method: "POST" });
+        currentUser = data.user;
+        const idx = habits.findIndex((h) => h.id === habitId);
+        if (idx !== -1) habits[idx] = data.habit;
+        renderUser();
+        renderHabits();
+        renderItems();
+        if (data.leveled_up) showToast("🎉 Level Up!", "levelUpToast");
+        else showToast(`+${data.actual_xp} XP · +${data.actual_gold} 🪙`, "toast");
+      } catch (err) {
+        renderHabits();
+        showToast("❌ " + err.message, "toast");
+      }
+    }
+
+    let questType = "today";
+
+    function setQuestType(type) {
+      questType = type;
+      document.querySelectorAll(".quest-type").forEach((btn) => {
+        const active = btn.dataset.type === type;
+        btn.className = "quest-type bg-slate-800 border-2 rounded-xl p-3 text-left transition " +
+          (active ? "border-indigo-500" : "border-slate-700");
+      });
+      $("otherDateWrap").classList.toggle("hidden", type !== "other");
+      $("deadlineWrap").classList.toggle("hidden", type !== "deadline");
+    }
+
+    function openQuestModal() {
+      $("questModal").classList.add("open");
+      $("habitInput").focus();
+      setQuestType("today");
+    }
+
+    function closeQuestModal() {
+      $("questModal").classList.remove("open");
+      $("habitInput").value = "";
+      $("groupInput").value = "";
+      $("reminderInput").value = "";
+      $("otherDateInput").value = "";
+      $("deadlineInput").value = "";
+      $("reminderEnabled").checked = false;
+      $("reminderWrap").classList.add("hidden");
+    }
+
+    async function addHabit() {
+      const title = $("habitInput").value.trim();
+      const groupName = $("groupInput").value.trim();
+      if (!title) {
+        showToast("❌ Введи название квеста", "toast");
+        return;
+      }
+
+      let scheduledDate = null;
+      let isGlobal = false;
+      let deadline = null;
+
+      if (questType === "today") {
+        scheduledDate = new Date().toISOString().split("T")[0];
+      } else if (questType === "other") {
+        scheduledDate = $("otherDateInput").value || new Date().toISOString().split("T")[0];
+      } else if (questType === "global") {
+        isGlobal = true;
+      } else if (questType === "deadline") {
+        const dl = $("deadlineInput").value;
+        if (!dl) {
+          showToast("❌ Выбери дату дедлайна", "toast");
+          return;
+        }
+        deadline = new Date(dl).toISOString();
+      }
+
+      const reminderTime = $("reminderEnabled").checked ? ($("reminderInput").value || null) : null;
+
+      try {
+        const newHabit = await fetchJSON(`/api/habits/${TG_ID}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, group_name: groupName || null, scheduled_date: scheduledDate, reminder_time: reminderTime, is_global: isGlobal, deadline: deadline }),
+        });
+        habits.push(newHabit);
+        closeQuestModal();
+        renderHabits();
+        showToast("✅ Квест создан!", "toast");
+      } catch (err) {
+        showToast("❌ " + err.message, "toast");
+      }
+    }
+
+    async function evaluateAI() {
+      try {
+        showToast("✨ Оцениваю...", "toast");
+        const data = await fetchJSON(`/api/evaluate/${TG_ID}`, { method: "POST" });
+        habits = data.habits;
+        renderHabits();
+        showToast(`✨ Оценено ${data.updated} задач!`, "toast");
+      } catch (err) {
+        showToast("❌ " + err.message, "toast");
+      }
+    }
+
+    // ============================================================
+    // 5. Действия: магазин
+    // ============================================================
+    async function addItem(e) {
+      e.preventDefault();
+      const title = $("itemTitle").value.trim();
+      const price = parseInt($("itemPrice").value, 10);
+      const fileInput = $("itemImage");
+      const file = fileInput.files[0];
+
+      if (!title || !price || price < 1) {
+        showToast("❌ Заполни название и цену", "toast");
+        return;
+      }
+      if (file && file.size > 10 * 1024 * 1024) {
+        showToast("❌ Файл больше 10 МБ", "toast");
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append("title", title);
+      fd.append("price", String(price));
+      if (file) fd.append("image", file);
+
+      try {
+        const newItem = await fetchJSON(`/api/items/${TG_ID}`, { method: "POST", body: fd });
+        items.push(newItem);
+        $("itemForm").reset();
+        $("itemPrice").value = "10";
+        renderItems();
+        showToast("✅ Добавлено!", "toast");
+      } catch (err) {
+        showToast("❌ " + err.message, "toast");
+      }
+    }
+
+    async function buyItem(itemId) {
+      try {
+        const data = await fetchJSON(`/api/items/${itemId}/buy`, { method: "POST" });
+        currentUser = data.user;
+        const idx = items.findIndex((i) => i.id === itemId);
+        if (idx !== -1) items[idx] = data.item;
+        renderUser();
+        renderItems();
+        showToast("🎉 Куплено!", "toast");
+      } catch (err) {
+        showToast("❌ " + err.message, "toast");
+      }
+    }
+
+    // ============================================================
+    // 6. Табы
+    // ============================================================
+    function switchTab(tab) {
+      const screens = { quests: "questsScreen", shop: "shopScreen", rating: "ratingScreen" };
+      Object.values(screens).forEach((id) => $(id).classList.add("hidden"));
+      $(screens[tab]).classList.remove("hidden");
+
+      ["tabQuests", "tabShop", "tabRating"].forEach((id) => {
+        const btn = $(id);
+        const isActive = id === "tab" + tab.charAt(0).toUpperCase() + tab.slice(1);
+        btn.className = "tab-btn flex-1 py-2 rounded-lg text-sm font-bold " +
+          (isActive ? "bg-indigo-600" : "text-slate-400");
+      });
+
+      if (tab === "shop") loadItems();
+      if (tab === "rating") loadLeaderboard();
+      if (tab === "quests") loadHabits();
+    }
+
+    function updateRatingBtn() {
+      const btn = $("toggleRatingBtn");
+      if (!btn) return;
+      if (currentUser && currentUser.show_in_leaderboard === false) {
+        btn.textContent = "👁 Показать меня";
+        btn.classList.add("bg-indigo-600/20", "border-indigo-500", "text-indigo-300");
+      } else {
+        btn.textContent = "👁 Скрыть меня";
+        btn.classList.remove("bg-indigo-600/20", "border-indigo-500", "text-indigo-300");
+      }
+    }
+
+    async function toggleRating() {
+      try {
+        currentUser = await fetchJSON(`/api/user/${TG_ID}/toggle-leaderboard`, { method: "POST" });
+        updateRatingBtn();
+        loadLeaderboard();
+        showToast(currentUser.show_in_leaderboard ? "👁 Ты виден в рейтинге" : "🙈 Ты скрыт из рейтинга", "toast");
+      } catch (err) {
+        showToast("❌ " + err.message, "toast");
+      }
+    }
+    // ===== Темы =====
+    function applyTheme(theme) {
+      document.body.dataset.theme = theme;
+      localStorage.setItem("questlife_theme", theme);
+      document.querySelectorAll(".theme-btn").forEach((btn) => {
+        const active = btn.dataset.themeBtn === theme;
+        btn.style.borderColor = active ? "#6366f1" : "";
+      });
+    }
+
+    function openSettings() {
+      $("settingsModal").classList.add("open");
+    }
+
+    // ===== Предпросмотр обрезки =====
+    let pendingCropFile = null;
+
+    function showCropPreview(file) {
+      if (!file || !file.type.startsWith("image/")) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        $("cropImg").src = e.target.result;
+        $("cropPreview").classList.add("open");
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function cancelCrop() {
+      $("cropPreview").classList.remove("open");
+      pendingCropFile = null;
+      $("itemImage").value = "";
+    }
+    function showToast(text, id) {
+      const el = $(id);
+      el.textContent = text;
+      el.classList.remove("hidden");
+      setTimeout(() => el.classList.add("hidden"), 2500);
+    }
+
+    // ============================================================
+    // 7. Старт
+    // ============================================================
+
+    $("itemForm").addEventListener("submit", addItem);
+
+    $("settingsBtn").addEventListener("click", openSettings);
+    $("settingsClose").addEventListener("click", () => $("settingsModal").classList.remove("open"));
+    $("settingsModal").addEventListener("click", (e) => { if (e.target === $("settingsModal")) $("settingsModal").classList.remove("open"); });
+    document.querySelectorAll(".theme-btn").forEach((btn) => {
+      btn.addEventListener("click", () => applyTheme(btn.dataset.themeBtn));
+    });
+    $("itemImage").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (file) { pendingCropFile = file; showCropPreview(file); }
+    });
+    $("cropCancel").addEventListener("click", cancelCrop);
+    $("cropAccept").addEventListener("click", () => {
+      $("cropPreview").classList.remove("open");
+    });
+    applyTheme(localStorage.getItem("questlife_theme") || "dark");
+    $("fabAdd").addEventListener("click", openQuestModal);
+    $("modalClose").addEventListener("click", closeQuestModal);
+    $("modalSubmit").addEventListener("click", addHabit);
+    $("questModal").addEventListener("click", (e) => { if (e.target === $("questModal")) closeQuestModal(); });
+    $("reminderEnabled").addEventListener("change", (e) => {
+      $("reminderWrap").classList.toggle("hidden", !e.target.checked);
+      if (e.target.checked) $("reminderInput").focus();
+    });
+    document.querySelectorAll(".quest-type").forEach((btn) => {
+      btn.addEventListener("click", () => setQuestType(btn.dataset.type));
+    });
+    $("tabQuests").addEventListener("click", () => switchTab("quests"));
+    $("tabShop").addEventListener("click", () => switchTab("shop"));
+    $("tabRating").addEventListener("click", () => switchTab("rating"));
+    $("btnEvalAI").addEventListener("click", evaluateAI);
+    $("toggleRatingBtn").addEventListener("click", toggleRating);
+    $("btnToday").addEventListener("click", () => {
+      selectedDate = new Date().toISOString().split("T")[0];
+      $("dateFilter").value = selectedDate;
+      loadHabits();
+    });
+    $("dateFilter").addEventListener("change", (e) => {
+      selectedDate = e.target.value;
+      loadHabits();
+    });
+    $("dateFilter").value = selectedDate;
+
+    document.querySelectorAll(".template-habit").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $("habitInput").value = btn.dataset.title;
+        $("groupInput").value = btn.dataset.group || "";
+        $("habitInput").focus();
+      });
+    });
+
+    document.querySelectorAll(".template-item").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $("itemTitle").value = btn.dataset.title;
+        $("itemPrice").value = btn.dataset.price;
+      });
+    });
+
+    loadUser().then(loadHabits).catch((e) => showToast("Ошибка: " + e.message, "toast"));
+  </script>
