@@ -42,60 +42,38 @@
     body[data-theme="amber"] .bg-slate-800, body[data-theme="amber"] .bg-slate-900\/40, body[data-theme="amber"] .bg-slate-900\/60 { background-color: #92400e !important; }
     body[data-theme="amber"] .border-slate-700, body[data-theme="amber"] .border-slate-600 { border-color: #d97706 !important; }
   </style>
+  <link rel="stylesheet" href="/static/redesign.css" />
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen font-sans pb-24">
+  <canvas id="starfield" class="starfield" aria-hidden="true"></canvas>
 
-  <!-- ============ ШАПКА ============ -->
-  <header class="max-w-md mx-auto px-4 pt-6 pb-4">
-    <div class="flex items-center gap-4 bg-slate-800/80 rounded-2xl p-4 border border-slate-700">
-        <button id="settingsBtn" type="button" class="absolute -top-2 -left-2 w-9 h-9 rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center text-slate-400 hover:text-white hover:rotate-45 transition-all duration-300 shadow-lg z-10" title="Настройки">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.576 2.136.336 2.471-.925z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-        </button>
-      <div id="avatar" class="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-2xl font-bold select-none">?</div>
-      <div class="flex-1 min-w-0">
-        <h1 id="username" class="text-lg font-bold truncate">Гость</h1>
-        <p class="text-slate-400 text-sm">Уровень <span id="level" class="text-indigo-400 font-bold">1</span></p>
-      </div>
-      <div class="flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2">
-        <span class="text-lg">🪙</span>
-        <span id="gold" class="font-bold text-amber-400">0</span>
-      </div>
+  <!-- ============ ШАПКА ИГРОКА ============ -->
+  <header class="app-header">
+    <div class="topbar">
+      <div class="brand-lockup"><div class="brand-mark" aria-hidden="true">✦</div><div><p class="brand-name">QuestLife</p><p class="brand-caption">Твой день — твои правила</p></div></div>
+      <button id="settingsBtn" type="button" class="icon-button" title="Настройки" aria-label="Настройки"><span aria-hidden="true">⚙</span></button>
     </div>
-
-    <div class="mt-4 bg-slate-800/80 rounded-2xl p-4 border border-slate-700">
-      <div class="flex justify-between text-sm mb-2">
-        <span class="text-slate-400">Опыт</span>
-        <span><span id="xp" class="text-indigo-400 font-bold">0</span> / <span id="xpNeeded">100</span> XP</span>
-      </div>
-      <div class="h-3 bg-slate-700 rounded-full overflow-hidden">
-        <div id="xpBar" class="xp-fill h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" style="width: 0%"></div>
-      </div>
-      <p class="text-xs text-slate-500 mt-2">Дневной лимит: <span id="dailyLimits">200 XP · 150 зол.</span></p>
-    </div>
+    <section class="player-card" aria-label="Прогресс игрока">
+      <div class="player-line"><div id="avatar" class="player-avatar">?</div><div class="player-info"><h1 id="username">Гость</h1><p>Уровень <span id="level">1</span><span class="player-role"> · Искатель</span></p></div><div class="gold-pill"><span aria-hidden="true">✦</span><span id="gold">0</span></div></div>
+      <div class="xp-heading"><span>Опыт до нового уровня</span><span><b id="xp">0</b><i> / </i><span id="xpNeeded">100</span> XP</span></div>
+      <div class="xp-track"><div id="xpBar" class="xp-fill"></div></div>
+      <p class="daily-cap"><span aria-hidden="true">✦</span> До лимита сегодня: <span id="dailyLimits">200 XP · 150 зол.</span></p>
+    </section>
   </header>
 
-  <!-- ============ ТАБЫ ============ -->
-  <div class="max-w-md mx-auto px-4">
-    <div class="flex bg-slate-800 rounded-xl p-1 gap-1">
-      <button id="tabQuests" class="tab-btn flex-1 py-2 rounded-lg text-sm font-bold bg-indigo-600">⚔️ Квесты</button>
-      <button id="tabShop" class="tab-btn flex-1 py-2 rounded-lg text-sm font-bold text-slate-400">🛒 Магазин</button>
-      <button id="tabRating" class="tab-btn flex-1 py-2 rounded-lg text-sm font-bold text-slate-400">🏆 Рейтинг</button>
-    </div>
-  </div>
-
   <!-- ============ ЭКРАН КВЕСТОВ ============ -->
-  <main id="questsScreen" class="max-w-md mx-auto px-4 pb-8 pt-4">
-    <!-- Дата и группы -->
-    <div class="flex gap-2 mb-3 items-center">
-      <input id="dateFilter" type="date" class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs" />
-      <button id="btnToday" class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-400">Сегодня</button>
-      <button id="btnEvalAI" class="bg-purple-600 hover:bg-purple-500 rounded-xl px-3 py-2 text-xs font-bold ml-auto">✨ Оценить ИИ</button>
-    </div>
+  <main id="questsScreen" class="app-main">
+    <section class="day-heading">
+      <div><p class="eyebrow">ТВОЯ ПРИКЛЮЧЕНЧЕСКАЯ ПАНЕЛЬ</p><h2 id="dayTitle">Сегодня</h2><p id="dayDate" class="day-date"></p></div>
+      <div class="date-actions"><button id="btnToday" type="button" class="today-button">Сегодня</button><label class="calendar-button" title="Выбрать дату"><span aria-hidden="true">▦</span><input id="dateFilter" type="date" aria-label="Выбрать дату" /></label></div>
+    </section>
+    <section class="day-progress" aria-live="polite"><div class="progress-orb" aria-hidden="true">✓</div><div class="progress-copy"><strong id="questProgressLabel">Твой путь начинается!</strong><span id="questProgressCount">Добавь первый квест на сегодня</span></div><div class="progress-percent" id="questProgressPercent">0%</div><div class="day-progress-track"><div id="questProgressBar"></div></div></section>
+    <div class="quest-toolbar"><div class="section-label">План на день</div><button id="btnEvalAI" type="button" class="ai-button"><span aria-hidden="true">✦</span> Оценить награды</button></div>
 
     <!-- Кнопка добавления -->     <button id="fabAdd" type="button" class="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/30 flex items-center justify-center text-2xl font-bold text-white active:scale-95 transition z-40">+</button>      <!-- Модалка создания квеста -->     <div id="questModal" class="modal-overlay fixed inset-0 bg-black/60 backdrop-blur-sm z-50 items-end sm:items-center justify-center">       <div class="bg-slate-900 border border-slate-700 rounded-t-3xl sm:rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 space-y-5">         <div class="flex items-center justify-between">           <h3 class="text-lg font-bold">Новый квест</h3>           <button id="modalClose" type="button" class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition">✕</button>         </div>          <!-- Название -->         <div>           <label class="text-xs text-slate-400 block mb-1">Название квеста</label>           <input id="habitInput" type="text" placeholder="Например: Пить воду" maxlength="120"             class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 placeholder:text-slate-500" />         </div>          <!-- Группа -->         <div>           <label class="text-xs text-slate-400 block mb-1">Группа <span class="text-slate-600">(необязательно)</span></label>           <input id="groupInput" type="text" placeholder="Например: Здоровье" maxlength="60"             class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500 placeholder:text-slate-500" />         </div>          <!-- Тип квеста -->         <div>           <label class="text-xs text-slate-400 block mb-2">Тип квеста</label>           <div class="grid grid-cols-2 gap-2">             <button type="button" class="quest-type bg-slate-800 border-2 border-indigo-500 rounded-xl p-3 text-left transition" data-type="today">               <span class="block text-sm font-bold">📅 Сегодня</span>               <span class="block text-[10px] text-slate-500 mt-0.5">обычный квест</span>             </button>             <button type="button" class="quest-type bg-slate-800 border-2 border-slate-700 rounded-xl p-3 text-left transition" data-type="other">               <span class="block text-sm font-bold">📆 Другая дата</span>               <span class="block text-[10px] text-slate-500 mt-0.5">выбрать день</span>             </button>             <button type="button" class="quest-type bg-slate-800 border-2 border-slate-700 rounded-xl p-3 text-left transition" data-type="global">               <span class="block text-sm font-bold">🌐 Глобальный</span>               <span class="block text-[10px] text-slate-500 mt-0.5">без даты, навсегда</span>             </button>             <button type="button" class="quest-type bg-slate-800 border-2 border-slate-700 rounded-xl p-3 text-left transition" data-type="deadline">               <span class="block text-sm font-bold">⏳ Дедлайн</span>               <span class="block text-[10px] text-slate-500 mt-0.5">срок выполнения</span>             </button>           </div>           <div id="otherDateWrap" class="mt-2 hidden">             <input id="otherDateInput" type="date" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-indigo-500" />           </div>           <div id="deadlineWrap" class="mt-2 hidden">             <input id="deadlineInput" type="datetime-local" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-purple-500" />           </div>         </div>          <!-- Напоминание -->         <div>           <label class="flex items-center gap-2 text-xs text-slate-400 mb-2 cursor-pointer">             <input id="reminderEnabled" type="checkbox" class="accent-indigo-500 w-4 h-4" />             <span>⏰ Напомнить в Telegram</span>           </label>           <div id="reminderWrap" class="hidden">             <input id="reminderInput" type="time" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-indigo-500" />             <p class="text-[10px] text-slate-600 mt-1">Бот пришлёт сообщение в это время</p>           </div>         </div>          <!-- Кнопка -->         <button id="modalSubmit" type="button" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 active:scale-95 transition py-3.5 rounded-xl font-bold text-sm">Создать квест</button>       </div>     </div> 
     <!-- Шаблоны -->
-    <div class="mb-4">
-      <p class="text-xs text-slate-500 mb-2">Быстрый выбор:</p>
+    <div id="habitTemplates" class="quick-templates hidden">
+      <p class="section-label">Быстрый старт</p>
       <div class="flex flex-wrap gap-2">
         <button class="template-habit bg-slate-800 border border-slate-700 hover:border-indigo-600 rounded-full px-3 py-1.5 text-xs" data-title="Пить воду" data-group="Здоровье">💧 Пить воду</button>
         <button class="template-habit bg-slate-800 border border-slate-700 hover:border-indigo-600 rounded-full px-3 py-1.5 text-xs" data-title="Зарядка 10 минут" data-group="Здоровье">🏃 Зарядка</button>
@@ -117,7 +95,7 @@
   </main>
 
   <!-- ============ ЭКРАН МАГАЗИНА ============ -->
-  <main id="shopScreen" class="max-w-md mx-auto px-4 pb-8 pt-4 hidden">
+  <main id="shopScreen" class="hidden">
     <h2 class="text-sm uppercase tracking-wider text-slate-500 font-semibold mb-3">Магазин</h2>
 
     <form id="itemForm" class="bg-slate-800/80 rounded-2xl p-4 border border-slate-700 mb-4 space-y-3">
@@ -156,7 +134,7 @@
   </main>
 
   <!-- ============ ЭКРАН РЕЙТИНГА ============ -->
-  <main id="ratingScreen" class="max-w-md mx-auto px-4 pb-8 pt-4 hidden">
+  <main id="ratingScreen" class="hidden">
     <div class="flex items-center justify-between mb-3">
       <h2 class="text-sm uppercase tracking-wider text-slate-500 font-semibold">🏆 Топ игроков по XP</h2>
       <button id="toggleRatingBtn" type="button" class="text-xs px-3 py-1.5 rounded-lg border border-slate-600 text-slate-300 hover:border-indigo-500 hover:text-indigo-400 transition">
@@ -169,6 +147,12 @@
       <p>Пока никто не играл</p>
     </div>
   </main>
+
+  <nav class="bottom-nav" aria-label="Основная навигация">
+    <button id="tabQuests" class="tab-btn is-active" type="button" aria-current="page"><span class="nav-icon" aria-hidden="true">⚔</span><span>Квесты</span></button>
+    <button id="tabShop" class="tab-btn" type="button"><span class="nav-icon" aria-hidden="true">▣</span><span>Награды</span></button>
+    <button id="tabRating" class="tab-btn" type="button"><span class="nav-icon" aria-hidden="true">♛</span><span>Рейтинг</span></button>
+  </nav>
 
   <!-- ============ ТОСТЫ ============ -->
   <div id="levelUpToast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-6 py-3 rounded-xl shadow-lg font-bold hidden z-50">🎉 Level Up!</div>
@@ -230,8 +214,7 @@
     tg.expand();
 
     const tgData = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
-    const TG_ID = tgData ? tgData.id : 111111111;
-    const TG_USERNAME = tgData ? (tgData.username || (tgData.first_name || "Игрок")) : "Guest";
+    const TG_ID = tgData ? tgData.id : null;
 
     let currentUser = null;
     let habits = [];
@@ -244,7 +227,16 @@
     // 2. API
     // ============================================================
     async function fetchJSON(url, options = {}) {
-      const res = await fetch(url, options);
+      if (!tg.initData || TG_ID === null) {
+        throw new Error("Откройте QuestLife из Telegram, чтобы войти в свой аккаунт.");
+      }
+      const res = await fetch(url, {
+        ...options,
+        headers: {
+          ...(options.headers || {}),
+          "X-Telegram-Init-Data": tg.initData,
+        },
+      });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.detail ?? `HTTP ${res.status}`);
@@ -253,7 +245,7 @@
     }
 
     async function loadUser() {
-      currentUser = await fetchJSON(`/api/user/${TG_ID}?username=${encodeURIComponent(TG_USERNAME)}`);
+      currentUser = await fetchJSON(`/api/user/${TG_ID}`);
       renderUser();
     }
 
@@ -277,7 +269,7 @@
     // 3. Рендер
     // ============================================================
     function renderUser() {
-      $("username").textContent = "@" + (currentUser.username ?? "guest");
+      $("username").textContent = currentUser.username ? "@" + currentUser.username : "Гость";
       $("level").textContent = currentUser.level;
       $("xp").textContent = currentUser.xp;
       $("xpNeeded").textContent = currentUser.xp_needed;
@@ -293,6 +285,24 @@
       const empty = $("emptyState");
       container.innerHTML = "";
       empty.classList.toggle("hidden", habits.length > 0);
+      $("habitTemplates").classList.toggle("hidden", habits.length > 0);
+      const completedCount = habits.filter((habit) => habit.is_completed).length;
+      const completion = habits.length ? Math.round(completedCount / habits.length * 100) : 0;
+      $("questProgressPercent").textContent = completion + "%";
+      $("questProgressCount").textContent = habits.length
+        ? `Выполнено ${completedCount} из ${habits.length} квестов`
+        : "Добавь первый квест на сегодня";
+      $("questProgressLabel").textContent = habits.length
+        ? (completion === 100 ? "Все квесты выполнены — отлично!" : completion >= 50 ? "Хороший темп! Продолжай" : "Каждый шаг приближает к цели")
+        : "Твой путь начинается!";
+      $("questProgressBar").style.width = completion + "%";
+      const selectedDay = selectedDate ? new Date(selectedDate + "T12:00:00") : new Date();
+      $("dayTitle").textContent = selectedDate === new Date().toISOString().split("T")[0]
+        ? "Сегодня"
+        : selectedDay.toLocaleDateString("ru-RU", { weekday: "long" });
+      $("dayDate").textContent = selectedDay.toLocaleDateString("ru-RU", {
+        weekday: "long", day: "numeric", month: "long",
+      });
 
       // Группируем по group_name
       const groups = {};
@@ -306,22 +316,20 @@
         // Карточка группы
         const groupCard = document.createElement("div");
         const hasGroupName = !!groupName;
-        groupCard.className = hasGroupName
-          ? "mb-5 rounded-2xl bg-slate-800/60 border border-slate-700/80 overflow-hidden"
-          : "mb-5";
+        groupCard.className = "quest-group-card";
 
         if (hasGroupName) {
           // Шапка группы
           const header = document.createElement("div");
-          header.className = "flex items-center gap-2 px-4 py-3 border-b border-slate-700/50 bg-slate-800/90";
+          header.className = "quest-group-head";
           const dot = document.createElement("span");
-          dot.className = "w-2 h-2 rounded-full bg-indigo-400 shrink-0";
+          dot.className = "quest-group-dot";
           const name = document.createElement("span");
-          name.className = "text-sm font-bold text-slate-200 uppercase tracking-wide flex-1 truncate";
+          name.className = "quest-group-name";
           name.textContent = groupName;
           const count = document.createElement("span");
           const doneCount = groupHabits.filter(h => h.is_completed).length;
-          count.className = "text-xs text-slate-500 px-2 py-0.5 rounded-full bg-slate-700/50";
+          count.className = "quest-group-count";
           count.textContent = `${doneCount}/${groupHabits.length}`;
           header.append(dot, name, count);
           groupCard.append(header);
@@ -329,14 +337,12 @@
 
         // Тело группы
         const body = document.createElement("div");
-        body.className = hasGroupName ? "p-2 space-y-1" : "space-y-1";
+        body.className = "quest-group-body";
 
         groupHabits.forEach((habit) => {
           const row = document.createElement("div");
           const done = habit.is_completed;
-          const rowCls = done
-            ? "flex items-center gap-3 rounded-xl p-3 bg-slate-900/40 opacity-60 transition"
-            : "flex items-center gap-3 rounded-xl p-3 hover:bg-slate-900/60 transition cursor-pointer";
+          const rowCls = "quest-row" + (done ? " is-done" : "");
           row.className = rowCls;
           if (!done) row.addEventListener("click", (e) => {
             if (e.target.closest("button")) return;
@@ -346,31 +352,25 @@
           // Круглый чекбокс с галочкой
           const check = document.createElement("button");
           check.type = "button";
-          check.className = done
-            ? "w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/20"
-            : "w-7 h-7 rounded-full border-2 border-slate-600 hover:border-indigo-400 flex items-center justify-center shrink-0 transition";
+          check.className = "quest-check" + (done ? " is-done" : "");
           check.innerHTML = done ? '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : "";
+          check.setAttribute("aria-label", done ? "Квест выполнен" : "Отметить квест выполненным");
           check.addEventListener("click", () => {
             if (!done) completeHabit(habit.id);
           });
 
           // Текст
           const textWrap = document.createElement("div");
-          textWrap.className = "flex-1 min-w-0";
+          textWrap.className = "quest-copy";
           const title = document.createElement("p");
-          title.className = "text-sm font-medium";
+          title.className = "quest-title";
           title.textContent = habit.title;
           if (done) title.classList.add("line-through");
 
           const meta = document.createElement("p");
-          meta.className = "text-xs text-slate-500 mt-0.5";
+          meta.className = "quest-meta";
           const badges = [];
-          if (habit.xp_reward > 0 || habit.gold_reward > 0) {
-            badges.push(`+${habit.xp_reward} XP · +${habit.gold_reward} 🪙`);
-          } else {
-            badges.push("не оценено");
-          }
-          if (habit.ai_evaluated) badges.push("✨");
+          if (habit.ai_evaluated) badges.push("✦ ИИ");
           if (habit.reminder_time) badges.push(`⏰ ${habit.reminder_time}`);
           if (habit.is_global) badges.push("🌐");
           if (habit.deadline) {
@@ -387,7 +387,7 @@
           // Кнопка удаления
           const delBtn = document.createElement("button");
           delBtn.type = "button";
-          delBtn.className = "w-7 h-7 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center shrink-0 transition";
+          delBtn.className = "quest-delete flex items-center justify-center shrink-0 transition";
           delBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>';
           delBtn.title = "Удалить";
           delBtn.addEventListener("click", (e) => {
@@ -395,7 +395,12 @@
             if (confirm(`Удалить «${habit.title}»?`)) deleteHabit(habit.id);
           });
 
-          row.append(check, textWrap, delBtn);
+          const reward = document.createElement("span");
+          reward.className = "quest-reward";
+          reward.textContent = habit.xp_reward > 0 || habit.gold_reward > 0
+            ? `+${habit.xp_reward} XP` + (habit.gold_reward > 0 ? ` · ${habit.gold_reward} 🪙` : "")
+            : "без оценки";
+          row.append(check, textWrap, reward, delBtn);
           body.append(row);
         });
         groupCard.append(body);
@@ -674,8 +679,9 @@
       ["tabQuests", "tabShop", "tabRating"].forEach((id) => {
         const btn = $(id);
         const isActive = id === "tab" + tab.charAt(0).toUpperCase() + tab.slice(1);
-        btn.className = "tab-btn flex-1 py-2 rounded-lg text-sm font-bold " +
-          (isActive ? "bg-indigo-600" : "text-slate-400");
+        btn.classList.toggle("is-active", isActive);
+        if (isActive) btn.setAttribute("aria-current", "page");
+        else btn.removeAttribute("aria-current");
       });
 
       if (tab === "shop") loadItems();
@@ -744,6 +750,104 @@
       setTimeout(() => el.classList.add("hidden"), 2500);
     }
 
+    function initStarfield() {
+      const canvas = $("starfield");
+      const ctx = canvas && canvas.getContext("2d");
+      if (!ctx) return;
+
+      const colors = ["#FFFFFF", "#FFFFAA", "#AAAAFF", "#FFAAAA", "#AAFFAA", "#FFAAFF", "#AAFFFF"];
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const pixelSize = 3;
+      const stars = [];
+      let shootingStar = null;
+      let frame = 0;
+      let lastFrame = 0;
+      let spawnTimer = null;
+      let dpr = 1;
+
+      function resize() {
+        dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        canvas.width = Math.floor(window.innerWidth * dpr);
+        canvas.height = Math.floor(window.innerHeight * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        stars.length = 0;
+        const count = Math.floor(window.innerWidth * window.innerHeight * 0.000022);
+        for (let i = 0; i < count; i++) {
+          stars.push({
+            x: Math.random() * window.innerWidth,
+            y: Math.random() * window.innerHeight,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            opacity: Math.random() * 0.42 + 0.18,
+            phase: Math.random() * Math.PI * 2,
+            speed: Math.random() * 0.001 + 0.0004,
+          });
+        }
+        draw(0, true);
+      }
+
+      function draw(timestamp, still = false) {
+        ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        for (const star of stars) {
+          const twinkle = reducedMotion ? 1 : 0.62 + Math.sin(timestamp * star.speed + star.phase) * 0.38;
+          ctx.globalAlpha = star.opacity * twinkle;
+          ctx.fillStyle = star.color;
+          ctx.fillRect(Math.round(star.x), Math.round(star.y), pixelSize, pixelSize);
+        }
+        ctx.globalAlpha = 1;
+
+        if (shootingStar && !still) {
+          const s = shootingStar;
+          s.trail.unshift({ x: s.x, y: s.y, alpha: 0.8 });
+          s.trail = s.trail.slice(0, 8).map((point, index) => ({ ...point, alpha: 0.8 * (1 - index / 8) }));
+          s.trail.forEach((point, index) => {
+            ctx.globalAlpha = point.alpha;
+            ctx.fillStyle = index < 2 ? "#e6e0ff" : "#9ccfff";
+            ctx.fillRect(Math.round(point.x), Math.round(point.y), 2, 2);
+          });
+          ctx.globalAlpha = 1;
+          s.x += Math.cos(s.angle) * s.speed;
+          s.y += Math.sin(s.angle) * s.speed;
+          if (s.x < -30 || s.x > window.innerWidth + 30 || s.y > window.innerHeight + 30) shootingStar = null;
+        }
+      }
+
+      function animate(timestamp) {
+        if (document.hidden) { frame = 0; return; }
+        if (timestamp - lastFrame >= 1000 / 16) {
+          lastFrame = timestamp;
+          draw(timestamp);
+        }
+        frame = requestAnimationFrame(animate);
+      }
+
+      function startShootingStars() {
+        if (reducedMotion) return;
+        spawnTimer = setTimeout(() => {
+          const angle = (45 + Math.random() * 90) * Math.PI / 180;
+          shootingStar = { x: Math.random() * window.innerWidth, y: 0, angle, speed: 4 + Math.random() * 3, trail: [] };
+          startShootingStars();
+        }, 6500 + Math.random() * 8500);
+      }
+
+      function onVisibilityChange() {
+        if (document.hidden) {
+          if (frame) cancelAnimationFrame(frame);
+          frame = 0;
+        } else if (!reducedMotion && !frame) {
+          lastFrame = 0;
+          frame = requestAnimationFrame(animate);
+        }
+      }
+
+      resize();
+      window.addEventListener("resize", resize, { passive: true });
+      document.addEventListener("visibilitychange", onVisibilityChange);
+      if (!reducedMotion) {
+        frame = requestAnimationFrame(animate);
+        startShootingStars();
+      }
+    }
+
     // ============================================================
     // 7. Старт
     // ============================================================
@@ -765,6 +869,7 @@
       $("cropPreview").classList.remove("open");
     });
     applyTheme(localStorage.getItem("questlife_theme") || "dark");
+    initStarfield();
     $("fabAdd").addEventListener("click", openQuestModal);
     $("modalClose").addEventListener("click", closeQuestModal);
     $("modalSubmit").addEventListener("click", addHabit);

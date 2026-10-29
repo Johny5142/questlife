@@ -1,15 +1,18 @@
 # QuestLife — Telegram Mini App (геймифицированный трекер привычек)
 
+import hashlib
+import hmac
 import json
 import os
 import secrets
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
+from urllib.parse import parse_qsl
 
 import requests
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -66,6 +69,11 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # Модели
+def database_utc_now() -> datetime:
+    """Return naive UTC for SQLite DateTime columns configured without timezone."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
@@ -98,7 +106,7 @@ class Habit(Base):
     is_global = Column(Boolean, default=False, nullable=False)  # глобальный квест
     deadline = Column(DateTime, nullable=True)  # дедлайн для глобальных
     is_completed = Column(Boolean, default=False, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=database_utc_now, onupdate=database_utc_now, nullable=False)
 
     user = relationship("User", back_populates="habits")
 
@@ -111,7 +119,7 @@ class Item(Base):
     price = Column(Integer, nullable=False, default=10)
     image_path = Column(String, nullable=True)
     is_purchased = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=database_utc_now, nullable=False)
 
     user = relationship("User", back_populates="items")
 
@@ -165,6 +173,47 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def authenticate_telegram(init_data: Optional[str] = Header(default=None, alias="X-Telegram-Init-Data")) -> dict:
+    """Validate Telegram Mini App initData and return its authenticated user."""
+    if not TELEGRAM_BOT_TOKEN:
+        raise HTTPException(status_code=503, detail="Telegram authentication is not configured")
+    if not init_data:
+        raise HTTPException(status_code=401, detail="Open QuestLife from Telegram")
+
+    try:
+        pairs = parse_qsl(init_data, keep_blank_values=True, strict_parsing=True)
+        fields = dict(pairs)
+        if len(fields) != len(pairs):
+            raise ValueError("duplicate initData fields")
+        received_hash = fields.pop("hash")
+        auth_date = int(fields["auth_date"])
+        telegram_user = json.loads(fields["user"])
+        if not isinstance(telegram_user, dict):
+            raise ValueError("invalid Telegram user")
+        telegram_id = int(telegram_user["id"])
+    except (ValueError, KeyError, TypeError, json.JSONDecodeError):
+        raise HTTPException(status_code=401, detail="Invalid Telegram authentication data")
+
+    check_string = "\n".join(f"{key}={value}" for key, value in sorted(fields.items()))
+    secret_key = hmac.new(b"WebAppData", TELEGRAM_BOT_TOKEN.encode(), hashlib.sha256).digest()
+    expected_hash = hmac.new(secret_key, check_string.encode(), hashlib.sha256).hexdigest()
+    now = int(datetime.now(timezone.utc).timestamp())
+    if not hmac.compare_digest(expected_hash, received_hash):
+        raise HTTPException(status_code=401, detail="Invalid Telegram authentication data")
+    if auth_date > now + 60 or now - auth_date > 24 * 60 * 60:
+        raise HTTPException(status_code=401, detail="Telegram authentication data has expired")
+
+    return {
+        "id": telegram_id,
+        "username": telegram_user.get("username") or telegram_user.get("first_name") or "Игрок",
+    }
+
+
+def require_same_user(tg_id: int, authenticated_user: dict) -> None:
+    if tg_id != authenticated_user["id"]:
+        raise HTTPException(status_code=403, detail="Нельзя обращаться к данным другого пользователя")
 
 
 def utc_now() -> datetime:
@@ -272,7 +321,10 @@ def evaluate_tasks_with_ai(tasks: list) -> dict:
                 data = json.loads(content)
                 result = {}
                 for t in data.get("tasks", []):
-                    result[t["title"]] = {"xp": min(int(t.get("xp", 15)), 100), "gold": min(int(t.get("gold", 10)), 80)}
+                    result[t["title"]] = {
+                        "xp": max(0, min(int(t.get("xp", 15)), 100)),
+                        "gold": max(0, min(int(t.get("gold", 10)), 80)),
+                    }
                 return result
             else:
                 last_error = f"HTTP {res.status_code}"
@@ -291,203 +343,6 @@ def evaluate_tasks_with_ai(tasks: list) -> dict:
 # Telegram Bot
 TELEGRAM_BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 TELEGRAM_API_URL = "https://api.telegram.org/bot{token}/sendMessage"
-
-
-def resolve_db_path() -> Path:
-    candidates = []
-    env_path = os.getenv("DATABASE_PATH")
-    if env_path:
-        candidates.append(Path(env_path))
-    candidates.append(Path("/data/questlife.db"))
-    candidates.append(BASE_DIR / "data" / "questlife.db")
-    candidates.append(BASE_DIR / "questlife.db")
-    for p in candidates:
-        try:
-            p.parent.mkdir(parents=True, exist_ok=True)
-            probe = p.parent / ".write_test"
-            probe.touch()
-            probe.unlink()
-            return p
-        except Exception:
-            continue
-    return BASE_DIR / "questlife.db"
-
-
-DB_PATH = resolve_db_path()
-engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-Base = declarative_base()
-
-UPLOAD_DIR = DB_PATH.parent / "uploads"
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
-
-# Модели
-class User(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True)
-    telegram_id = Column(Integer, unique=True, index=True, nullable=False)
-    username = Column(String, nullable=True)
-    level = Column(Integer, default=1, nullable=False)
-    xp = Column(Integer, default=0, nullable=False)
-    gold = Column(Integer, default=0, nullable=False)
-    total_xp = Column(Integer, default=0, nullable=False)
-    last_active_date = Column(Date, default=date.today, nullable=False)
-    daily_xp_gained = Column(Integer, default=0, nullable=False)
-    daily_gold_gained = Column(Integer, default=0, nullable=False)
-    show_in_leaderboard = Column(Boolean, default=True, nullable=False)
-
-    habits = relationship("Habit", back_populates="user", cascade="all, delete-orphan")
-    items = relationship("Item", back_populates="user", cascade="all, delete-orphan")
-
-
-class Habit(Base):
-    __tablename__ = "habits"
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    title = Column(String, nullable=False)
-    group_name = Column(String, nullable=True, default=None)
-    scheduled_date = Column(Date, default=date.today, nullable=False)
-    xp_reward = Column(Integer, default=0, nullable=False)
-    gold_reward = Column(Integer, default=0, nullable=False)
-    ai_evaluated = Column(Boolean, default=False, nullable=False)
-    reminder_time = Column(String, nullable=True)  # HH:MM
-    is_global = Column(Boolean, default=False, nullable=False)  # глобальный квест
-    deadline = Column(DateTime, nullable=True)  # дедлайн для глобальных
-    is_completed = Column(Boolean, default=False, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-
-    user = relationship("User", back_populates="habits")
-
-
-class Item(Base):
-    __tablename__ = "items"
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    title = Column(String, nullable=False)
-    price = Column(Integer, nullable=False, default=10)
-    image_path = Column(String, nullable=True)
-    is_purchased = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-
-    user = relationship("User", back_populates="items")
-
-
-# Миграции
-def run_migrations():
-    with engine.connect() as conn:
-        for col, typedef in [
-            ("total_xp", "INTEGER DEFAULT 0"),
-            ("daily_xp_gained", "INTEGER DEFAULT 0"),
-            ("daily_gold_gained", "INTEGER DEFAULT 0"),
-            ("show_in_leaderboard", "BOOLEAN DEFAULT 1"),
-        ]:
-            try:
-                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {typedef}"))
-                print(f"[migrate] users.{col} added")
-            except Exception:
-                pass
-
-        for col, typedef in [
-            ("group_name", "TEXT DEFAULT NULL"),
-            ("scheduled_date", "DATE"),
-            ("xp_reward", "INTEGER DEFAULT 0"),
-            ("gold_reward", "INTEGER DEFAULT 0"),
-            ("ai_evaluated", "BOOLEAN DEFAULT 0"),
-            ("reminder_time", "TEXT DEFAULT NULL"),
-            ("is_global", "BOOLEAN DEFAULT 0"),
-            ("deadline", "DATETIME DEFAULT NULL"),
-        ]:
-            try:
-                conn.execute(text(f"ALTER TABLE habits ADD COLUMN {col} {typedef}"))
-                print(f"[migrate] habits.{col} added")
-            except Exception:
-                pass
-
-        try:
-            conn.execute(text("UPDATE habits SET scheduled_date = :d WHERE scheduled_date IS NULL"), {"d": date.today().isoformat()})
-        except Exception:
-            pass
-        conn.commit()
-
-
-Base.metadata.create_all(engine)
-run_migrations()
-
-
-# Хелперы
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def xp_needed_for_level(level: int) -> int:
-    return BASE_XP_PER_LEVEL + (level - 1) * LEVEL_XP_STEP
-
-
-def user_response(user: User) -> dict:
-    return {
-        "telegram_id": user.telegram_id,
-        "username": user.username,
-        "level": user.level,
-        "xp": user.xp,
-        "xp_needed": xp_needed_for_level(user.level),
-        "gold": user.gold,
-        "total_xp": (user.total_xp or 0) + user.xp,
-        "daily_xp_remaining": max(0, DAILY_XP_LIMIT - user.daily_xp_gained),
-        "daily_gold_remaining": max(0, DAILY_GOLD_LIMIT - user.daily_gold_gained),
-        "show_in_leaderboard": user.show_in_leaderboard,
-    }
-
-
-def habit_response(habit: Habit) -> dict:
-    return {
-        "id": habit.id,
-        "title": habit.title,
-        "group_name": habit.group_name,
-        "scheduled_date": habit.scheduled_date.isoformat() if habit.scheduled_date else None,
-        "xp_reward": habit.xp_reward,
-        "gold_reward": habit.gold_reward,
-        "ai_evaluated": habit.ai_evaluated,
-        "reminder_time": habit.reminder_time,
-        "is_global": habit.is_global,
-        "deadline": habit.deadline.isoformat() if habit.deadline else None,
-        "is_completed": habit.is_completed,
-        "updated_at": habit.updated_at.isoformat() if habit.updated_at else None,
-    }
-
-
-def item_response(item: Item) -> dict:
-    return {
-        "id": item.id,
-        "title": item.title,
-        "price": item.price,
-        "image_path": item.image_path,
-        "is_purchased": item.is_purchased,
-    }
-
-
-def get_user_by_tg_id(db: Session, tg_id: int) -> Optional[User]:
-    return db.query(User).filter(User.telegram_id == tg_id).first()
-
-
-def maybe_reset_daily(db: Session, user: User) -> None:
-    today = utc_now().date()
-    if user.last_active_date != today:
-        user.last_active_date = today
-        user.daily_xp_gained = 0
-        user.daily_gold_gained = 0
-        for habit in user.habits:
-            if habit.is_completed and habit.scheduled_date == today:
-                habit.is_completed = False
-        db.commit()
 
 
 # DeepSeek
@@ -569,22 +424,32 @@ async def start_reminder_loop():
 
 # Профиль
 @app.get("/api/user/{tg_id}", tags=["users"])
-def get_or_create_user(tg_id: int, username: Optional[str] = None, db: Session = Depends(get_db)):
+def get_or_create_user(
+    tg_id: int,
+    authenticated_user: dict = Depends(authenticate_telegram),
+    db: Session = Depends(get_db),
+):
+    require_same_user(tg_id, authenticated_user)
     user = get_user_by_tg_id(db, tg_id)
     if user is None:
-        user = User(telegram_id=tg_id, username=username)
+        user = User(telegram_id=tg_id, username=authenticated_user["username"])
         db.add(user)
         db.commit()
         db.refresh(user)
-    elif username and user.username != username:
-        user.username = username
+    elif authenticated_user["username"] and user.username != authenticated_user["username"]:
+        user.username = authenticated_user["username"]
         db.commit()
     maybe_reset_daily(db, user)
     return user_response(user)
 
 
 @app.post("/api/user/{tg_id}/toggle-leaderboard", tags=["users"])
-def toggle_leaderboard(tg_id: int, db: Session = Depends(get_db)):
+def toggle_leaderboard(
+    tg_id: int,
+    authenticated_user: dict = Depends(authenticate_telegram),
+    db: Session = Depends(get_db),
+):
+    require_same_user(tg_id, authenticated_user)
     user = get_user_by_tg_id(db, tg_id)
     if user is None:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
@@ -596,7 +461,13 @@ def toggle_leaderboard(tg_id: int, db: Session = Depends(get_db)):
 
 # Квесты
 @app.get("/api/habits/{tg_id}", tags=["habits"])
-def get_habits(tg_id: int, date_filter: Optional[str] = None, db: Session = Depends(get_db)):
+def get_habits(
+    tg_id: int,
+    date_filter: Optional[str] = None,
+    authenticated_user: dict = Depends(authenticate_telegram),
+    db: Session = Depends(get_db),
+):
+    require_same_user(tg_id, authenticated_user)
     user = get_user_by_tg_id(db, tg_id)
     if user is None:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
@@ -617,10 +488,20 @@ def get_habits(tg_id: int, date_filter: Optional[str] = None, db: Session = Depe
 
 
 @app.post("/api/habits/{tg_id}", tags=["habits"])
-def create_habit(tg_id: int, habit: HabitCreate, db: Session = Depends(get_db)):
+def create_habit(
+    tg_id: int,
+    habit: HabitCreate,
+    authenticated_user: dict = Depends(authenticate_telegram),
+    db: Session = Depends(get_db),
+):
+    require_same_user(tg_id, authenticated_user)
     user = get_user_by_tg_id(db, tg_id)
     if user is None:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    title = habit.title.strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Название квеста не может быть пустым")
 
     target_date = utc_now().date()
     if habit.scheduled_date:
@@ -649,7 +530,7 @@ def create_habit(tg_id: int, habit: HabitCreate, db: Session = Depends(get_db)):
 
     new_habit = Habit(
         user_id=user.id,
-        title=habit.title.strip(),
+        title=title,
         group_name=habit.group_name.strip() if habit.group_name else None,
         scheduled_date=target_date,
         reminder_time=reminder,
@@ -663,26 +544,52 @@ def create_habit(tg_id: int, habit: HabitCreate, db: Session = Depends(get_db)):
 
 
 @app.put("/api/habits/{habit_id}", tags=["habits"])
-def update_habit(habit_id: int, data: HabitUpdate, db: Session = Depends(get_db)):
-    habit = db.query(Habit).filter(Habit.id == habit_id).first()
+def update_habit(
+    habit_id: int,
+    data: HabitUpdate,
+    authenticated_user: dict = Depends(authenticate_telegram),
+    db: Session = Depends(get_db),
+):
+    habit = db.query(Habit).join(User).filter(
+        Habit.id == habit_id, User.telegram_id == authenticated_user["id"]
+    ).first()
     if habit is None:
         raise HTTPException(status_code=404, detail="Квест не найден")
     if data.title is not None:
-        habit.title = data.title.strip()
+        title = data.title.strip()
+        if not title:
+            raise HTTPException(status_code=422, detail="Название квеста не может быть пустым")
+        habit.title = title
     if data.group_name is not None:
         habit.group_name = data.group_name.strip() if data.group_name else None
     if data.scheduled_date:
-        habit.scheduled_date = date.fromisoformat(data.scheduled_date)
+        try:
+            habit.scheduled_date = date.fromisoformat(data.scheduled_date)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="Неверный формат даты")
     if data.reminder_time is not None:
-        habit.reminder_time = data.reminder_time or None
+        if not data.reminder_time:
+            habit.reminder_time = None
+        else:
+            try:
+                datetime.strptime(data.reminder_time, "%H:%M")
+            except ValueError:
+                raise HTTPException(status_code=422, detail="Время в формате HH:MM")
+            habit.reminder_time = data.reminder_time
     db.commit()
     db.refresh(habit)
     return habit_response(habit)
 
 
 @app.delete("/api/habits/{habit_id}", tags=["habits"])
-def delete_habit(habit_id: int, db: Session = Depends(get_db)):
-    habit = db.query(Habit).filter(Habit.id == habit_id).first()
+def delete_habit(
+    habit_id: int,
+    authenticated_user: dict = Depends(authenticate_telegram),
+    db: Session = Depends(get_db),
+):
+    habit = db.query(Habit).join(User).filter(
+        Habit.id == habit_id, User.telegram_id == authenticated_user["id"]
+    ).first()
     if habit is None:
         raise HTTPException(status_code=404, detail="Квест не найден")
     db.delete(habit)
@@ -691,8 +598,14 @@ def delete_habit(habit_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/api/habits/{habit_id}/complete", tags=["habits"])
-def complete_habit(habit_id: int, db: Session = Depends(get_db)):
-    habit = db.query(Habit).join(User).filter(Habit.id == habit_id).first()
+def complete_habit(
+    habit_id: int,
+    authenticated_user: dict = Depends(authenticate_telegram),
+    db: Session = Depends(get_db),
+):
+    habit = db.query(Habit).join(User).filter(
+        Habit.id == habit_id, User.telegram_id == authenticated_user["id"]
+    ).first()
     if habit is None:
         raise HTTPException(status_code=404, detail="Квест не найден")
     if habit.is_completed:
@@ -727,7 +640,12 @@ def complete_habit(habit_id: int, db: Session = Depends(get_db)):
 
 # ИИ
 @app.post("/api/evaluate/{tg_id}", tags=["ai"])
-def evaluate_tasks(tg_id: int, db: Session = Depends(get_db)):
+def evaluate_tasks(
+    tg_id: int,
+    authenticated_user: dict = Depends(authenticate_telegram),
+    db: Session = Depends(get_db),
+):
+    require_same_user(tg_id, authenticated_user)
     user = get_user_by_tg_id(db, tg_id)
     if user is None:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
@@ -747,12 +665,16 @@ def evaluate_tasks(tg_id: int, db: Session = Depends(get_db)):
 
     xp_budget = max(0, DAILY_XP_LIMIT - user.daily_xp_gained)
     gold_budget = max(0, DAILY_GOLD_LIMIT - user.daily_gold_gained)
+    xp_remaining = xp_budget
+    gold_remaining = gold_budget
     updated = 0
     for habit in pending:
         if habit.title in evaluations:
             ev = evaluations[habit.title]
-            habit.xp_reward = min(ev["xp"], xp_budget)
-            habit.gold_reward = min(ev["gold"], gold_budget)
+            habit.xp_reward = min(max(0, int(ev.get("xp", 0))), xp_remaining)
+            habit.gold_reward = min(max(0, int(ev.get("gold", 0))), gold_remaining)
+            xp_remaining -= habit.xp_reward
+            gold_remaining -= habit.gold_reward
             habit.ai_evaluated = True
             updated += 1
     db.commit()
@@ -777,7 +699,12 @@ def get_leaderboard(db: Session = Depends(get_db)):
 
 # Магазин
 @app.get("/api/items/{tg_id}", tags=["items"])
-def get_items(tg_id: int, db: Session = Depends(get_db)):
+def get_items(
+    tg_id: int,
+    authenticated_user: dict = Depends(authenticate_telegram),
+    db: Session = Depends(get_db),
+):
+    require_same_user(tg_id, authenticated_user)
     user = get_user_by_tg_id(db, tg_id)
     if user is None:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
@@ -791,8 +718,10 @@ async def create_item(
     title: str = Form(...),
     price: int = Form(...),
     image: UploadFile = File(None),
+    authenticated_user: dict = Depends(authenticate_telegram),
     db: Session = Depends(get_db),
 ):
+    require_same_user(tg_id, authenticated_user)
     user = get_user_by_tg_id(db, tg_id)
     if user is None:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
@@ -843,8 +772,14 @@ async def create_item(
 
 
 @app.post("/api/items/{item_id}/buy", tags=["items"])
-def buy_item(item_id: int, db: Session = Depends(get_db)):
-    item = db.query(Item).join(User).filter(Item.id == item_id).first()
+def buy_item(
+    item_id: int,
+    authenticated_user: dict = Depends(authenticate_telegram),
+    db: Session = Depends(get_db),
+):
+    item = db.query(Item).join(User).filter(
+        Item.id == item_id, User.telegram_id == authenticated_user["id"]
+    ).first()
     if item is None:
         raise HTTPException(status_code=404, detail="Предмет не найден")
     if item.is_purchased:
@@ -870,10 +805,10 @@ async def telegram_webhook(update: dict):
     """Обрабатывает /start: присылает сообщение с inline-кнопкой «Открыть»."""
     try:
         message = update.get("message")
-        if message and message.get("text", "").startswith("/start"):
+        if TELEGRAM_BOT_TOKEN and message and message.get("text", "").startswith("/start"):
             chat_id = message["chat"]["id"]
             requests.post(
-                TELEGRAM_API_URL.replace("/sendMessage", "/sendMessage"),
+                TELEGRAM_API_URL.format(token=TELEGRAM_BOT_TOKEN),
                 json={
                     "chat_id": chat_id,
                     "text": "⚔️ QuestLife\n\nГеймифицированный трекер привычек!\n\n• Зарабатывай XP и золото\n• Выполняй квесты\n• Побеждай в рейтинге\n\nНажми кнопку, чтобы начать:",
