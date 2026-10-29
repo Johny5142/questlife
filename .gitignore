@@ -4,6 +4,20 @@ __pycache__/
 .venv/
 venv/
 
+# Тесты и результаты проверок
+tests/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+junit.xml
+test-results/
+playwright-report/
+playwright/.cache/
+.tox/
+.nox/
+
 # База данных
 questlife.db
 
